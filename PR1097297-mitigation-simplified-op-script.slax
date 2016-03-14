@@ -1,0 +1,167 @@
+/*
+ * Script PR1097297-mitigation-simplified-op-script.slax
+ * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>
+ *
+ * Description:
+ *   Mitigation of PR1097297; symptoms: missing IPv4 routes from one of the routers tables.
+ *   The script checks if one particular IPv4 route has gone missing from one routing-table;
+ *   if it is found to be missing, then a 'clear bgp neighbor' must be executed.
+ *
+ */
+
+version 1.0;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+import "../import/junos.xsl";
+
+match / {
+    <op-script-results> {
+
+        /* eBGP Peer */
+        var $peer = "10.0.0.1";
+
+        /* Routing instance (if needed!) and table */
+        var $instance = "INSTANCE";
+        var $table = $instance _ ".inet.0";
+
+        /* Control prefix - the missing route! */
+        var $control = "172.16.0.0/20";
+
+        expr jcs:output("\n");
+        expr jcs:output("-----------------------------------------------------------");
+        expr jcs:output("          PR1097297: Checking peer routes                  ");
+        expr jcs:output("-----------------------------------------------------------");
+        expr jcs:output("\n");
+
+        /* Verificacao da rota */
+        var $search = {
+                        <get-route-information> {
+                                <table> $table;
+                                <destination> $control;
+                                <exact>;
+                        }
+        }
+        var $result = jcs:invoke($search);
+
+        /* If the control prefix is not on the table, the script will clear the eBGP session */
+
+        var $exists = jcs:empty($result/route-table);
+
+        if($exists){
+            expr jcs:output("-----------------------------------------------------------");
+            expr jcs:output(" PR1097297: Control prefix not found!                      ");
+            expr jcs:output("-----------------------------------------------------------");
+            expr jcs:output("\n");
+            expr jcs:syslog("external.notice","PR1097297: ERROR! Prefix not found!");
+
+            var $clearbgp = {
+                <clear-bgp-neighbor> {
+                        <neighbor> $peer;
+                }
+            }
+
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("          --> Clearing eBGP session!                       ");
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output(" Command: clear bgp neighbor ",$peer);
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+
+			var $out = jcs:invoke($clearbgp);
+
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output($out);
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+
+			/* Waiting 30 seconds longer than the BGP default timer (90 seg) for checking the session */
+
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output(" Awaiting 120 seconds to check the eBGP session!           ");
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+
+			expr jcs:sleep(120);
+
+			/* Verifying both session and control prefix */
+
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output(" Checking eBGP session with peer ",$peer);
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+
+			var $checkbgp = {
+				<get-bgp-neighbor-information> {
+					<neighbor-address> $peer;
+				}
+			}
+
+			expr jcs:output("-------------------------------------------------------------");
+			expr jcs:output(" show bgp neighbor ",$peer);
+			expr jcs:output("-------------------------------------------------------------");
+			expr jcs:output("\n");
+
+			var $out2 = jcs:invoke($checkbgp);
+
+			expr jcs:output("-------------------------------------------------------------");
+			expr jcs:output(" Peer status: ",$out2/bgp-peer/peer-state);
+			expr jcs:output("-------------------------------------------------------------");
+			expr jcs:output("\n");
+
+			if($out2/bgp-peer/peer-state != "Established"){
+				/* A syslog message is generated in case the session does not return - other issues affecting (link outage, maintenance window) */
+
+				expr jcs:output("-----------------------------------------------------------");
+				expr jcs:output(" PR1097297: BGP session not established! Aborting Op script!");
+				expr jcs:output("-----------------------------------------------------------");
+				expr jcs:output("\n");
+				expr jcs:syslog("external.warning","PR1097297: ERROR! BGP session not established! Aborting Op script!");
+			}
+
+			else{
+				/* BGP session restablished, checking control prefix presence */
+				var $search2 = {
+					<get-route-information> {
+						<table> $table;
+						<destination> $control;
+						<exact>;
+					}
+				}
+
+				var $result2 = jcs:invoke($search2);
+				var $exists2 = jcs:empty($result2/route-table);
+
+				if(not($exists2)){
+					expr jcs:output("-----------------------------------------------------------");
+					expr jcs:output(" PR1097297: Control prefix has been found!                 ");
+					expr jcs:output("            Finishing script!                              ");
+					expr jcs:output("-----------------------------------------------------------");
+					expr jcs:output("\n");
+					expr jcs:syslog("external.warning","PR1097297: Route found! Op Script successfully completed!");
+				}
+
+				else{
+					/* In case the prefix is still missing, it is not due to PR1097297; it is likely an issue at its origin. Script sera finalizado */
+					expr jcs:output("-----------------------------------------------------------");
+					expr jcs:output(" PR1097297: Control prefix has not been found, even after  ");
+					expr jcs:output(" clearing the BGP session! Aborting Op Script!             ");
+					expr jcs:output("-----------------------------------------------------------");
+					expr jcs:output("\n");
+					expr jcs:syslog("external.warning","PR1097297: ERROR! Route not present even after clearing the session! Aborting Op Script!");
+               }
+           }
+       }
+
+		else{
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output(" PR1097297: Control prefix found. Finishing script!        ");
+			expr jcs:output("-----------------------------------------------------------");
+			expr jcs:output("\n");
+			expr jcs:syslog("external.warning","PR1097297: Route found! Op Script successfully completed!");
+        }
+    }
+}
