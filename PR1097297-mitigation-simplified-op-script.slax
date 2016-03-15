@@ -1,11 +1,33 @@
+@@ -0,0 +1,188 @@
 /*
  * Script PR1097297-mitigation-simplified-op-script.slax
- * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>
+ * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>/<rafael.ribeiro@ieee.org>
  *
  * Description:
  *   Mitigation of PR1097297; symptoms: missing IPv4 routes from one of the routers tables.
  *   The script checks if one particular IPv4 route has gone missing from one routing-table;
  *   if it is found to be missing, then a 'clear bgp neighbor' must be executed.
+ *
+ * Please note that:
+ * - This file must be copied at the routers /var/db/scripts/event/ directory - it is an
+ *   op script that is invoked through an event!
+ * - If a multi-RE system is used, copy to both REs!
+ * - The following configuration must be applied at the router:
+ *		event-options {
+ *			generate-event {
+ *				10-MINUTE-TIMER time-interval 600;
+ *			}
+ *			policy CHECK_MISSING_ROUTES {
+ *				events 10-MINUTE-TIMER;
+ *			then {
+ *				event-script PR1097297-mitigation-simplified-op-script.slax;
+ *			}
+ *		}
+ *		event-script {
+ *			file PR1097297-mitigation-simplified-op-script.slax;
+ *			}
+ *		}
+ * - You may tune it at your own liking; the 10 minute timer worked fine for me. YMMV, of course.
  *
  */
 
