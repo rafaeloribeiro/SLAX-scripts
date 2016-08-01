@@ -1,7 +1,7 @@
 @@ -0,0 +1,188 @@
 /*
  * Script PR1097297-mitigation-simplified-op-script.slax
- * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>/<rafael.ribeiro@ieee.org>
+ * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@ieee.org>
  *
  * Description:
  *   Mitigation of PR1097297; symptoms: missing IPv4 routes from one of the routers tables.
