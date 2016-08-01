@@ -1,0 +1,48 @@
+/*
+ * Script static-routes-annotate-commit-script.slax
+ * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>/<rafael.ribeiro@ieee.org>
+ *
+ * Description:
+ *   This particular script checks for the existence of comments on every static route,
+ *   be it IPv4 or IPv6 on all routing instances.
+ *   If it is found to be missing, the commit fails as a whole.
+ *
+ * Please note that:
+ * - This file must be copied at the routers /var/db/scripts/commit/ directory 
+ * - If a multi-RE system is used, copy to both REs!
+ * - The following configuration must be applied at the router:
+ *		system {
+ *			scripts {
+ *				commit {
+ *					file static-routes-annotate-commit-script.slax;
+ *				}
+ *			}
+ *		}
+ *  or: 'set system scripts commit file static-routes-annotate-commit-script.slax'
+ *
+ * - You may tune it at your own liking; YMMV, of course.
+ *
+ */
+
+version 1.0;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+import "../import/junos.xsl";
+
+match configuration {
+
+	var $ipv4_routes = routing-options/static;
+	var $ipv6_routes = routing-options/rib[name='inet6.0']/static;
+
+    for-each ($ipv4_routes/route | $ipv6_routes/route) {
+		if (not([ preceding-sibling::*[1][self::comment ]])) {
+			<xnm:warning> {
+				<message> {
+					expr "Static route " _ name _ " does not have an associated comment";
+				}
+			}
+		}
+	}
+}
