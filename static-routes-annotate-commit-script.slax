@@ -1,6 +1,6 @@
 /*
  * Script static-routes-annotate-commit-script.slax
- * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@rnp.br>/<rafael.ribeiro@ieee.org>
+ * Author: Rafael de Oliveira Ribeiro <rafael.ribeiro@ieee.org>
  *
  * Description:
  *   This particular script checks for the existence of comments on every static route,
