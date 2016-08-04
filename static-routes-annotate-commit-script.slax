@@ -19,7 +19,6 @@
  *			}
  *		}
  *  or: 'set system scripts commit file static-routes-annotate-commit-script.slax'
- *
  * - You may tune it at your own liking; YMMV, of course.
  *
  */
