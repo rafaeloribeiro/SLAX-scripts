@@ -57,7 +57,7 @@ match / {
         expr jcs:output("-----------------------------------------------------------");
         expr jcs:output("\n");
 
-        /* Verificacao da rota */
+        /* Prefix search */
         var $search = {
                         <get-route-information> {
                                 <table> $table;
